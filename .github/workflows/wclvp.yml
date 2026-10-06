@@ -1,0 +1,25 @@
+name: wclvp-v1.0-R1
+on:
+  schedule: [ { cron: "*/5 * * * *" } ]
+  workflow_dispatch: {}
+concurrency: { group: wclvp, cancel-in-progress: false }
+permissions: { contents: write }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: main }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install requests
+      - name: wclvp
+        env: { ODDS_API_KEY: "${{ secrets.ODDS_API_KEY }}", GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: python wclvp.py
+      - name: commit (append-only record; git history is the audit trail)
+        run: |
+          git config user.name "wclvp-logger"; git config user.email "wclvp@users.noreply.github.com"
+          git add -A log state looks
+          git diff --cached --quiet || git commit -m "wclvp $(date -u +%FT%TZ)"
+          git push || (git pull --rebase --autostash && git push)
